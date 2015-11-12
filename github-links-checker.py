@@ -14,7 +14,7 @@ from os.path import splitext
 from collections import namedtuple
 
 
-
+ISSUES = 'https://api.github.com/repos/evuez/github-links-checker/issues'
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,6 +22,7 @@ repositories = 'https://api.github.com/repositories'
 
 readmes = asyncio.Queue()
 links = asyncio.Queue()
+broken_links = asyncio.Queue()
 
 
 def get_http_link(link, rel):
@@ -62,7 +63,11 @@ def queue_readmes():
 
             readme = yield from r.text()
             if readme:
-                yield from readmes.put(readme)
+                yield from readmes.put((
+                    repo['owner']['login'],
+                    repo['html_url'],
+                    readme
+                ))
             else:
                 logging.warning('No README found for %s', repo['url'])
         else:
@@ -74,32 +79,62 @@ def queue_readmes():
 def queue_links():
     while True:
         readme = yield from readmes.get()
-        dom = html.fromstring(readme)
+        dom = html.fromstring(readme[2])
         for link in dom.xpath('//a/@href'):
             if link.startswith('#'):
                 continue
-            yield from links.put(link)
+            yield from links.put(readme[:2] + (link,))
 
 
 @asyncio.coroutine
 def process_links():
-    db = sqlite3.connect('links.db')
     while True:
         link = yield from links.get()
         try:
-            request = yield from aiohttp.head(link)
-            logging.info('%s returned a %d', link, request.status)
+            request = yield from aiohttp.head(link[2])
+            logging.info('%s returned a %d', link[2], request.status)
             if (request.status // 100) not in (4, 5):
                 continue
-            db.execute('insert into links values (?)', (link,))
-            db.commit()
-            logging.warning('Found broken link: %s', link)
+            yield from broken_links.put(link)
+            logging.warning('Found broken link: %s', link[2])
         except GeneratorExit:
             pass
         except Exception:
             pass
         finally:
             request.close()
+    db.close()
+
+
+@asyncio.coroutine
+def report_links():
+    db = sqlite3.connect('links.db')
+    while True:
+        link = yield from broken_links.get()
+
+        issue = json.dumps({
+            'title': "Found a broken link!",
+            'body': """
+@{owner}, there's a [broken link]({broken_link}) in the README of [one of your repository]({repo}).
+You should fix this so that users don't get confused while browsing it!
+
+*This is a bot-generated issue, reply to this issue if this link wasn't broken or if you fixed it so I can close it!*
+            """.format(
+                owner=link[0],
+                repo=link[1],
+                broken_link=link[2]
+            ).strip(),
+            'labels': [
+                'broken-link',
+            ]
+        })
+
+        r = yield from aiohttp.post(ISSUES, data=issue, auth=(USR, PWD))
+
+        db.execute('insert into links values (?)', (link[2],))
+        db.commit()
+
+        yield from wait_if_required(r.headers)
     db.close()
 
 
@@ -111,6 +146,7 @@ def main():
         process_links(),
         process_links(),
         process_links(),
+        report_links(),
     ]
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()

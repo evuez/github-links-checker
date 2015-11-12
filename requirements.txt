@@ -1,0 +1,4 @@
+aiohttp==0.18.3
+chardet==2.3.0
+lxml==3.4.4
+uritemplate.py==0.3.0
