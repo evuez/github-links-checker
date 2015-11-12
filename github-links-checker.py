@@ -135,6 +135,8 @@ You should fix this so that users don't get confused while browsing it!
         db.commit()
 
         yield from wait_if_required(r.headers)
+
+        r.close()
     db.close()
 
 
