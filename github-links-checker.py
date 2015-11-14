@@ -112,7 +112,7 @@ def report_links():
         issue = json.dumps({
             'title': "Found a broken link in {repo_short}!".format(repo_short=urlparse(link[1]).path[1:]),
             'body': """
-@{owner}, there's a [broken link]({broken_link}) in the README of [one of your repository]({repo}).
+@{owner}, there's a [broken link]({broken_link}) in the README of [one of your repositories]({repo}).
 You should fix it so that users don't get confused while browsing it!
 
 > A `HEAD` request was sent to {broken_link} and an `HTTP {http_status}` was returned.
