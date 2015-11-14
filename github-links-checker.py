@@ -46,6 +46,10 @@ def queue_readmes():
         repos = yield from request.text()
 
         for repo in json.loads(repos):
+            if repo['fork']:
+                logging.info("Skipping %s: fork", repo['full_name'])
+                continue
+
             r = yield from aiohttp.get(
                 "{}/readme".format(repo['url']),
                 auth=(USR, PWD),
