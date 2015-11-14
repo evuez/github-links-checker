@@ -1,17 +1,12 @@
 import aiohttp
 import json
-import re
 import logging
 import asyncio
 import sqlite3
-import traceback
 from lxml import html
 from time import time
 from datetime import datetime
-from base64 import b64decode
 from settings import USR, PWD
-from os.path import splitext
-from collections import namedtuple
 from urllib.parse import urlparse
 
 
@@ -96,6 +91,8 @@ def process_links():
             logging.info('%s returned a %d', link[2], request.status)
             if (request.status // 100) not in (4, 5):
                 continue
+            if request.status == 405:
+                continue  # Method Not Allowed
             yield from broken_links.put(link + (request.status,))
             logging.warning('Found broken link: %s', link[2])
         except GeneratorExit:
@@ -104,7 +101,6 @@ def process_links():
             pass
         finally:
             request.close()
-    db.close()
 
 
 @asyncio.coroutine
