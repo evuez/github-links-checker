@@ -12,11 +12,12 @@ from base64 import b64decode
 from settings import USR, PWD
 from os.path import splitext
 from collections import namedtuple
+from urllib.parse import urlparse
 
 
 ISSUES = 'https://api.github.com/repos/evuez/github-links-checker/issues'
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 repositories = 'https://api.github.com/repositories'
 
@@ -95,7 +96,7 @@ def process_links():
             logging.info('%s returned a %d', link[2], request.status)
             if (request.status // 100) not in (4, 5):
                 continue
-            yield from broken_links.put(link)
+            yield from broken_links.put(link + (request.status,))
             logging.warning('Found broken link: %s', link[2])
         except GeneratorExit:
             pass
@@ -113,16 +114,19 @@ def report_links():
         link = yield from broken_links.get()
 
         issue = json.dumps({
-            'title': "Found a broken link!",
+            'title': "Found a broken link in {repo_short}!".format(repo_short=urlparse(link[1]).path[1:]),
             'body': """
 @{owner}, there's a [broken link]({broken_link}) in the README of [one of your repository]({repo}).
-You should fix this so that users don't get confused while browsing it!
+You should fix it so that users don't get confused while browsing it!
+
+> A `HEAD` request was sent to {broken_link} and an `HTTP {http_status}` was returned.
 
 *This is a bot-generated issue, reply to this issue if this link wasn't broken or if you fixed it so I can close it!*
             """.format(
                 owner=link[0],
                 repo=link[1],
-                broken_link=link[2]
+                broken_link=link[2],
+                http_status=link[3]
             ).strip(),
             'labels': [
                 'broken-link',
