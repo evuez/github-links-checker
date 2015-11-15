@@ -95,8 +95,8 @@ def process_links():
             logging.info('%s returned a %d', link[2], request.status)
             if (request.status // 100) not in (4, 5):
                 continue
-            if request.status == 405:
-                continue  # Method Not Allowed
+            if request.status in (405, 501):
+                continue  # Method Not Allowed / Not Implemented
             yield from broken_links.put(link + (request.status,))
             logging.warning('Found broken link: %s', link[2])
         except GeneratorExit:
