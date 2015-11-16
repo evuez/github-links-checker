@@ -11,6 +11,8 @@ from urllib.parse import urlparse
 
 
 ISSUES = 'https://api.github.com/repos/evuez/github-links-checker/issues'
+OWNERS_WHITELIST = ('jnunemaker',)
+DOMAINS_WHITELIST = ('example.com',)
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -48,6 +50,9 @@ def queue_readmes():
         for repo in json.loads(repos):
             if repo['fork']:
                 logging.info("Skipping %s: fork", repo['full_name'])
+                continue
+            if repo['owner']['login'] in OWNERS_WHITELIST:
+                logging.info("Skipping %s: owner", repo['full_name'])
                 continue
 
             r = yield from aiohttp.get(
@@ -90,6 +95,8 @@ def queue_links():
 def process_links():
     while True:
         link = yield from links.get()
+        if urlparse(link[2]).netloc in DOMAINS_WHITELIST:
+            continue
         try:
             request = yield from aiohttp.head(link[2])
             logging.info('%s returned a %d', link[2], request.status)
@@ -114,7 +121,9 @@ def report_links():
         link = yield from broken_links.get()
 
         issue = json.dumps({
-            'title': "Found a broken link in {repo_short}!".format(repo_short=urlparse(link[1]).path[1:]),
+            'title': "Found a broken link in {repo_short}!".format(
+                repo_short=urlparse(link[1]).path[1:]
+            ),
             'body': """
 @{owner}, there's a [broken link]({broken_link}) in the README of [one of your repositories]({repo}).
 You should fix it so that users don't get confused while browsing it!
