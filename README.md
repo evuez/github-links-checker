@@ -20,7 +20,7 @@ At first I wanted to submit issues directly to repositories, but I think it's ki
 
 ## WTF?
 
-If you just got a mention from an issue in this repository, just remove that f*ing broken link from your README. You can then gently ask me to close this issue. Or I'll make another bot to make sure you did your work, cause I might be a bit too lazy to check all these issues.
+If you just got a mention from an issue in this repository, just remove that broken link from your README. You can then gently ask me to close this issue. Or I'll make another bot to make sure you did your work, cause I might be a bit too lazy to check all these issues.
 
 ## Your code is pretty awful, can I do something about it?
 
